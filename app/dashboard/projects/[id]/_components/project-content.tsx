@@ -6,6 +6,7 @@ import { CreateTicketModal } from "./create-ticket-modal";
 import { InviteMemberModal } from "./invite-member-modal";
 import { FilterBar } from "@/components/FilterBar";
 import { createClient } from "@/utils/supabase/client";
+import { Users } from "lucide-react";
 
 type Project = {
     id: string;
@@ -16,9 +17,11 @@ type Project = {
 export function ProjectContent({
     project,
     tickets,
+    memberCount,
 }: {
     project: Project;
     tickets: TicketType[];
+    memberCount: number;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('all');
@@ -62,6 +65,10 @@ export function ProjectContent({
                 <div>
                     <h1 className="text-2xl font-bold">{project.name}</h1>
                     <p className="text-muted-foreground">{project.description}</p>
+                    <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     <InviteMemberModal projectId={project.id} />

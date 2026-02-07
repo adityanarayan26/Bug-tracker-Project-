@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,11 +18,11 @@ export default async function DashboardPage() {
 
     if (!user) return null;
 
-    // Fetch projects user is a member of
+    // Fetch projects user is a member of with member count
     // note: relying on RLS policy: "Users can view projects they are member of"
     const { data: projects, error } = await supabase
         .from("projects")
-        .select("*")
+        .select("*, project_members(count)")
         .order("created_at", { ascending: false });
 
     return (
@@ -54,8 +54,11 @@ export default async function DashboardPage() {
                                         {project.description || "No description provided."}
                                     </CardDescription>
                                 </CardHeader>
-                                <CardFooter>
-                                    {/* Could add stats here later */}
+                                <CardFooter className="flex items-center justify-between">
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <Users className="h-3.5 w-3.5" />
+                                        <span>{project.project_members?.[0]?.count ?? 0} members</span>
+                                    </div>
                                     <span className="text-xs text-muted-foreground">View Board &rarr;</span>
                                 </CardFooter>
                             </Card>
