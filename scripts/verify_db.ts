@@ -1,9 +1,9 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Hardcoded credentials from .env.local (as read previously)
-const supabaseUrl = 'https://itjdjsplfyiqkxqwcptj.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0amRqc3BsZnlpcWt4cXdjcHRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNTAzMTQsImV4cCI6MjA4NDkyNjMxNH0.uRznkhCOryidXLAws17_F9Ovbko0n90Iw5EnVI_gATg';
+// Load credentials from environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
