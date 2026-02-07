@@ -24,8 +24,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { TicketType } from '@/components/KanbanBoard';
 
-export function CreateTicketModal({ projectId }: { projectId: string }) {
+export function CreateTicketModal({ projectId, onTicketCreated }: { projectId: string; onTicketCreated?: (ticket: TicketType) => void }) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -51,6 +52,10 @@ export function CreateTicketModal({ projectId }: { projectId: string }) {
         } else {
             toast.success("Ticket created successfully");
             setOpen(false);
+            // Broadcast the new ticket to other clients
+            if (res.data && onTicketCreated) {
+                onTicketCreated(res.data as TicketType);
+            }
         }
     }
 

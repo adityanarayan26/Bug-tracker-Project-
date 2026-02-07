@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { KanbanBoard, TicketType } from "@/components/KanbanBoard";
 import { CreateTicketModal } from "./create-ticket-modal";
 import { InviteMemberModal } from "./invite-member-modal";
 import { FilterBar } from "@/components/FilterBar";
+import { createClient } from "@/utils/supabase/client";
 
 type Project = {
     id: string;
@@ -22,6 +23,38 @@ export function ProjectContent({
     const [searchQuery, setSearchQuery] = useState('');
     const [priorityFilter, setPriorityFilter] = useState('all');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [channel, setChannel] = useState<any>(null);
+
+    // Set up broadcast channel for ticket creation
+    useEffect(() => {
+        const supabase = createClient();
+        const channelName = `project-${project.id}`;
+
+        const newChannel = supabase.channel(channelName, {
+            config: { broadcast: { self: false } }
+        });
+
+        newChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                setChannel(newChannel);
+            }
+        });
+
+        return () => {
+            supabase.removeChannel(newChannel);
+        };
+    }, [project.id]);
+
+    // Broadcast new ticket to other clients
+    const handleTicketCreated = async (ticket: TicketType) => {
+        if (channel) {
+            await channel.send({
+                type: 'broadcast',
+                event: 'ticket-create',
+                payload: { ticket }
+            });
+        }
+    };
 
     return (
         <div className="flex flex-col h-[calc(100vh-8rem)] gap-4">
@@ -32,7 +65,7 @@ export function ProjectContent({
                 </div>
                 <div className="flex items-center gap-2">
                     <InviteMemberModal projectId={project.id} />
-                    <CreateTicketModal projectId={project.id} />
+                    <CreateTicketModal projectId={project.id} onTicketCreated={handleTicketCreated} />
                 </div>
             </div>
 
