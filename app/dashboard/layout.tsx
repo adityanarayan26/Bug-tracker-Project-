@@ -43,7 +43,7 @@ export default async function DashboardLayout({
             <aside className="hidden w-64 flex-col border-r bg-background sm:flex">
                 <div className="flex h-14 items-center gap-2 border-b px-6 font-bold lg:h-[60px]">
                     <Bug className="h-6 w-6 text-primary" />
-                    <span className="">Labmentix</span>
+                    <span className="">Bug Tracker</span>
                 </div>
                 <div className="flex-1 overflow-auto py-2">
                     <nav className="grid items-start px-4 text-sm font-medium">

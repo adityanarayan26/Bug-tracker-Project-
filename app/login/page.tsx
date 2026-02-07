@@ -19,7 +19,7 @@ import {
     TabsTrigger,
 } from "@/components/ui/tabs"
 import { login, signup } from '../auth/actions'
-import { Bug } from 'lucide-react'
+import { Bug, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 
 export default function LoginPage() {
@@ -75,7 +75,14 @@ export default function LoginPage() {
                                     <Input id="password" name="password" type="password" required />
                                 </div>
                                 <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? 'Logging in...' : 'Login'}
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Logging in...
+                                        </>
+                                    ) : (
+                                        'Login'
+                                    )}
                                 </Button>
                             </form>
                         </TabsContent>
@@ -95,7 +102,14 @@ export default function LoginPage() {
                                     <Input id="signup-password" name="password" type="password" required />
                                 </div>
                                 <Button type="submit" className="w-full" disabled={loading}>
-                                    {loading ? 'Creating account...' : 'Create Account'}
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Creating account...
+                                        </>
+                                    ) : (
+                                        'Create Account'
+                                    )}
                                 </Button>
                             </form>
                         </TabsContent>

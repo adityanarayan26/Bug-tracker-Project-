@@ -54,7 +54,7 @@ const columns: ColumnType[] = [
 // --- Visual Components ---
 function ColumnWrapper({ title, count, children }: { title: string, count: number, children: React.ReactNode }) {
     return (
-        <div className="flex flex-col h-full bg-secondary/20 backdrop-blur-[2px] border border-border/50 rounded-xl p-4 transition-colors hover:bg-secondary/30">
+        <div className="flex flex-col h-full min-h-0 bg-secondary/20 backdrop-blur-[2px] border border-border/50 rounded-xl p-4 transition-colors hover:bg-secondary/30">
             <h3 className="font-semibold mb-4 flex items-center justify-between text-sm uppercase tracking-wide text-muted-foreground">
                 {title}
                 <Badge variant="secondary" className="ml-2 bg-background/50 text-foreground font-mono text-xs">
@@ -201,61 +201,69 @@ export function KanbanBoard({
         setTickets([...initialTickets].sort((a, b) => (a.position - b.position)));
     }, [initialTickets]);
 
-    // Realtime subscription
+    // Realtime subscription using Broadcast (more reliable than postgres_changes)
+    const [channel, setChannel] = useState<any>(null);
+
     useEffect(() => {
         const supabase = createClient();
-        console.log('Setting up realtime subscription for project:', projectId);
+        const channelName = `project-${projectId}`;
+        console.log('Setting up broadcast channel for project:', projectId);
 
-        const channel = supabase
-            .channel('realtime tickets')
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 'tickets'
-                    // Removing server-side filter to debug/ensure delivery
-                    // filter: `project_id=eq.${projectId}`
-                },
-                (payload) => {
-                    console.log('Realtime payload received:', payload);
+        const newChannel = supabase.channel(channelName, {
+            config: { broadcast: { self: false } } // Don't receive own broadcasts
+        });
 
-                    if (payload.eventType === 'INSERT') {
-                        const newTicket = payload.new as TicketType;
-                        setTickets((prev) => {
-                            if (newTicket.project_id !== projectId) return prev;
-                            if (prev.some(t => t.id === newTicket.id)) return prev;
-                            return [newTicket, ...prev];
-                        });
-                    } else if (payload.eventType === 'UPDATE') {
-                        const newTicket = payload.new as Partial<TicketType>;
-                        setTickets((prev) => {
-                            const existing = prev.find(t => t.id === newTicket.id);
-
-                            // 1. If explicit project_id mismatch, ignore
-                            if (newTicket.project_id && newTicket.project_id !== projectId) return prev;
-
-                            // 2. If no project_id (partial update) and not in list, ignore
-                            if (!newTicket.project_id && !existing) return prev;
-
-                            // 3. Apply update
-                            const updated = prev.map(t => t.id === newTicket.id ? { ...t, ...newTicket } : t);
-                            return updated.sort((a, b) => (a.position - b.position));
-                        });
-                    } else if (payload.eventType === 'DELETE') {
-                        setTickets((prev) => prev.filter(t => t.id !== payload.old.id));
-                    }
+        newChannel
+            .on('broadcast', { event: 'ticket-update' }, (payload) => {
+                console.log('Broadcast received:', payload);
+                const { tickets: updatedTickets } = payload.payload as { tickets: TicketType[] };
+                if (updatedTickets) {
+                    setTickets(updatedTickets.sort((a, b) => a.position - b.position));
                 }
-            )
-            .subscribe((status) => {
-                console.log('Realtime subscription status:', status);
+            })
+            .on('broadcast', { event: 'ticket-create' }, (payload) => {
+                console.log('Broadcast create received:', payload);
+                const { ticket } = payload.payload as { ticket: TicketType };
+                if (ticket) {
+                    setTickets(prev => {
+                        if (prev.some(t => t.id === ticket.id)) return prev;
+                        return [ticket, ...prev];
+                    });
+                }
+            })
+            .on('broadcast', { event: 'ticket-delete' }, (payload) => {
+                console.log('Broadcast delete received:', payload);
+                const { ticketId } = payload.payload as { ticketId: string };
+                if (ticketId) {
+                    setTickets(prev => prev.filter(t => t.id !== ticketId));
+                }
+            })
+            .subscribe((status, err) => {
+                console.log('Broadcast subscription status:', status);
+                if (err) console.error('Broadcast error:', err);
+                if (status === 'SUBSCRIBED') {
+                    console.log('Successfully subscribed to broadcast channel!');
+                }
             });
 
+        setChannel(newChannel as any);
+
         return () => {
-            console.log('Cleaning up realtime subscription');
-            supabase.removeChannel(channel);
+            console.log('Cleaning up broadcast channel');
+            supabase.removeChannel(newChannel);
         };
     }, [projectId]);
+
+    // Function to broadcast ticket updates to other clients
+    const broadcastUpdate = async (updatedTickets: TicketType[]) => {
+        if (channel) {
+            await (channel as any).send({
+                type: 'broadcast',
+                event: 'ticket-update',
+                payload: { tickets: updatedTickets }
+            });
+        }
+    };
 
     function handleDragStart(event: DragStartEvent) {
         setActiveId(event.active.id as string);
@@ -320,7 +328,10 @@ export function KanbanBoard({
         setTickets(updatedItems);
         setActiveId(null);
 
-        // 2. Server side effect
+        // 2. Broadcast to other clients
+        broadcastUpdate(updatedItems);
+
+        // 3. Server side effect
         const itemsToUpdate = updatedItems
             .filter(t => t.status === newStatus)
             .map(t => ({ id: t.id, position: t.position, status: t.status }));
@@ -337,7 +348,7 @@ export function KanbanBoard({
                             title={col.title}
                             count={initialTickets.filter(t => t.status === col.id).length}
                         >
-                            <div className="flex-1 space-y-3 min-h-[100px]">
+                            <div className="flex-1 space-y-3 min-h-[100px] overflow-y-auto pr-2">
                                 {initialTickets
                                     .filter((ticket) => ticket.status === col.id)
                                     .map((ticket) => (
@@ -373,7 +384,7 @@ export function KanbanBoard({
                                 items={tickets.filter(t => t.status === col.id).map(t => t.id)}
                                 strategy={verticalListSortingStrategy}
                             >
-                                <div className="flex-1 space-y-3 min-h-[100px]">
+                                <div className="flex-1 space-y-3 min-h-[100px] overflow-y-auto pr-2 custom-scrollbar">
                                     {filteredTickets
                                         .filter((ticket) => ticket.status === col.id)
                                         .map((ticket) => (
