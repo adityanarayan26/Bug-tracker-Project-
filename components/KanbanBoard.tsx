@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     DndContext,
     DragOverlay,
@@ -152,15 +152,39 @@ function TicketCard({ ticket, onClick, isOverlay }: { ticket: TicketType, onClic
 // --- Main Board Component ---
 export function KanbanBoard({
     initialTickets,
-    projectId
+    projectId,
+    searchQuery = '',
+    priorityFilter = 'all',
+    statusFilter = 'all',
 }: {
     initialTickets: TicketType[],
-    projectId: string
+    projectId: string,
+    searchQuery?: string,
+    priorityFilter?: string,
+    statusFilter?: string,
 }) {
     const [tickets, setTickets] = useState<TicketType[]>(initialTickets);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [selectedTicket, setSelectedTicket] = useState<TicketType | null>(null);
     const [mounted, setMounted] = useState(false);
+
+    // Apply filters
+    const filteredTickets = useMemo(() => {
+        return tickets.filter(ticket => {
+            // Search filter
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                const matchesTitle = ticket.title.toLowerCase().includes(query);
+                const matchesDescription = ticket.description?.toLowerCase().includes(query);
+                if (!matchesTitle && !matchesDescription) return false;
+            }
+            // Priority filter
+            if (priorityFilter !== 'all' && ticket.priority !== priorityFilter) return false;
+            // Status filter
+            if (statusFilter !== 'all' && ticket.status !== statusFilter) return false;
+            return true;
+        });
+    }, [tickets, searchQuery, priorityFilter, statusFilter]);
 
     useEffect(() => {
         setMounted(true);
@@ -343,14 +367,14 @@ export function KanbanBoard({
                             key={col.id}
                             id={col.id}
                             title={col.title}
-                            count={tickets.filter(t => t.status === col.id).length}
+                            count={filteredTickets.filter(t => t.status === col.id).length}
                         >
                             <SortableContext
                                 items={tickets.filter(t => t.status === col.id).map(t => t.id)}
                                 strategy={verticalListSortingStrategy}
                             >
                                 <div className="flex-1 space-y-3 min-h-[100px]">
-                                    {tickets
+                                    {filteredTickets
                                         .filter((ticket) => ticket.status === col.id)
                                         .map((ticket) => (
                                             <div key={ticket.id} onClick={() => setSelectedTicket(ticket)}>

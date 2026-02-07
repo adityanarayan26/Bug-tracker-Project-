@@ -90,6 +90,54 @@ export async function updateTicketOrder(items: { id: string; position: number; s
     return { success: true };
 }
 
+export async function updateTicket(
+    id: string,
+    data: { title?: string; description?: string; priority?: 'low' | 'medium' | 'high'; assignee_id?: string | null },
+    projectId: string
+) {
+    const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { error: 'User not authenticated' };
+    }
+
+    const { error } = await supabase
+        .from('tickets')
+        .update(data)
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error updating ticket:', error);
+        return { error: 'Failed to update ticket' };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return { success: true };
+}
+
+export async function deleteTicket(id: string, projectId: string) {
+    const supabase = await createClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { error: 'User not authenticated' };
+    }
+
+    const { error } = await supabase
+        .from('tickets')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error deleting ticket:', error);
+        return { error: 'Failed to delete ticket' };
+    }
+
+    revalidatePath(`/dashboard/projects/${projectId}`);
+    return { success: true };
+}
+
 export async function getTickets(projectId: string) {
     const supabase = await createClient();
 
